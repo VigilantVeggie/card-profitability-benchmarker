@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Activation Benchmarker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090b;
+      --surface: rgba(255, 255, 255, 0.04);
+      --surface-hover: rgba(255, 255, 255, 0.06);
+      --primary: #4a6cf7;
+      --secondary: #8b5cf6;
+      --tertiary: #2dd4bf;
+      --negative: #f43f5e;
+      --text: #fafafa;
+      --text-secondary: #71717a;
+      --poor: #f43f5e;
+      --average: #f59e0b;
+      --good: #2dd4bf;
+      --best: #4a6cf7;
+      --pad: 2.1rem;
+      --anim-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.02;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .header, .main, .footer { position: relative; z-index: 1; }
+
+    .header {
+      padding: var(--pad) var(--pad) 1.75rem;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .header p {
+      margin: 0.6rem 0 0;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .header a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .header a:hover { text-decoration: underline; }
+
+    .main {
+      display: grid;
+      grid-template-columns: 38% 62%;
+      gap: 0;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .inputs-panel {
+      padding: var(--pad);
+    }
+
+    .outputs-panel {
+      padding: var(--pad);
+    }
+
+    .mode-toggle {
+      position: relative;
+      display: flex;
+      margin-bottom: 2rem;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    .mode-toggle-slider {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: calc(50% - 4px);
+      height: calc(100% - 8px);
+      background: rgba(74, 108, 247, 0.15);
+      border-radius: 7px;
+      transition: transform 0.35s var(--anim-spring);
+      pointer-events: none;
+    }
+
+    .mode-toggle.fp .mode-toggle-slider {
+      transform: translateX(100%);
+    }
+
+    .mode-toggle button {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.25s ease;
+      z-index: 1;
+    }
+
+    .mode-toggle button.active {
+      color: var(--primary);
+    }
+
+    .mode-toggle button:not(.active):hover {
+      color: var(--text);
+    }
+
+    .field {
+      margin-bottom: 1.75rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.55rem;
+    }
+
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.4rem;
+      line-height: 1.45;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .field-row input[type="number"] {
+      width: 100px;
+      flex-shrink: 0;
+    }
+
+    input[type="number"],
+    select {
+      background: rgba(255, 255, 255, 0.03);
+      border: none;
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 0.65rem 0.85rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+      width: 100%;
+      color-scheme: dark;
+    }
+
+    select option {
+      background: #1a1a2e;
+      color: #f0ede6;
+      font-size: 0.875rem;
+      padding: 0.5rem 0.85rem;
+    }
+
+    select option:hover,
+    select option:focus,
+    select option:checked {
+      background: #2a2a4a;
+      color: #f0ede6;
+    }
+
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.35);
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--primary);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(74, 108, 247, 0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: var(--primary);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .fp-inputs { display: none; }
+    .fp-inputs.visible { display: block; }
+    .quick-inputs.hidden { display: none; }
+
+    .collapsible-section {
+      margin-bottom: 0.75rem;
+      background: var(--surface);
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+      overflow: hidden;
+    }
+
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .collapsible-header:hover { background: var(--surface-hover); }
+
+    .collapsible-arrow {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      width: 12px;
+      display: inline-block;
+    }
+
+    .collapsible-arrow::before { content: '▸'; }
+    .collapsible-section.open .collapsible-arrow::before { content: '▾'; }
+
+    .collapsible-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 1.25rem;
+    }
+
+    .collapsible-section.open .collapsible-body {
+      max-height: 1400px;
+      padding: 0 1.25rem 1.25rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .toggle-row label { margin: 0; }
+
+  .yesno-toggle {
+      display: flex;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .yesno-toggle button {
+      padding: 0.35rem 0.85rem;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .yesno-toggle button.active {
+      background: rgba(74, 108, 247, 0.2);
+      color: var(--primary);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+    }
+
+    button.action-btn {
+      padding: 0.65rem 1.25rem;
+      background: var(--surface);
+      border: none;
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s;
+    }
+
+    button.action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      color: var(--primary);
+    }
+
+    button.action-btn.primary {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    button.action-btn.primary:hover {
+      filter: brightness(1.08);
+      color: #fff;
+    }
+
+    .card {
+      background: var(--surface);
+      border: none;
+      border-radius: 14px;
+      padding: 1.75rem 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15), 0 0 40px rgba(255,255,255,0.02);
+      backdrop-filter: blur(4px);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 0 40px rgba(255,255,255,0.03);
+    }
+
+    .card h2 {
+      margin: 0 0 1.25rem;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .bento {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .bento-hero {
+      grid-column: 1 / -1;
+    }
+
+    .bento-hero .card:hover { transform: none; }
+
+    .hero-stat {
+      text-align: center;
+      padding: 0.5rem 0;
+    }
+
+    .hero-value {
+      font-size: 4.75rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--primary);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-label {
+      font-size: 0.875rem;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-top: 0.75rem;
+    }
+
+    .stat-grid {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value.primary { color: var(--primary); }
+    .stat-value.tertiary { color: var(--tertiary); }
+    .stat-value.secondary { color: var(--text); font-size: 1.25rem; }
+
+    .insight-text {
+      margin-top: 1.75rem;
+      padding-top: 1.75rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.9375rem;
+      line-height: 1.65;
+      color: var(--text-secondary);
+    }
+
+    .insight-text strong { color: var(--text); }
+
+    .fp-outputs { display: none; }
+    .fp-outputs.visible { display: flex; flex-direction: column; gap: 1.25rem; }
+    .quick-outputs.hidden { display: none; }
+
+    .breakdown-line {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem 1rem;
+      align-items: center;
+      margin-bottom: 0.85rem;
+    }
+
+    .breakdown-label { font-size: 0.8125rem; color: var(--text-secondary); }
+
+    .breakdown-amount {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .breakdown-bar-wrap {
+      grid-column: 1 / -1;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .breakdown-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s var(--anim-spring);
+    }
+
+    .breakdown-total {
+      margin-top: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .breakdown-total .breakdown-label { color: var(--text); font-weight: 600; }
+    .breakdown-total .breakdown-amount { font-size: 1.125rem; color: var(--text); }
+
+    .fp-hero-value {
+      font-size: 4.75rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fp-secondary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+
+    .projection-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .projection-table th,
+    .projection-table td {
+      padding: 0.65rem 0.75rem;
+      text-align: right;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .projection-table th:first-child,
+    .projection-table td:first-child { text-align: left; }
+
+    .projection-table th {
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.6875rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .projection-table tr.highlight td {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .delta-up { color: var(--tertiary); font-size: 0.75rem; }
+    .delta-down { color: var(--negative); font-size: 0.75rem; }
+
+    .card.hidden { display: none; }
+
+    .gauge-wrap {
+      margin-top: 0.5rem;
+    }
+
+    select.institution-select {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .gauge-track {
+      position: relative;
+      height: 28px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: linear-gradient(
+        to right,
+        var(--poor) 0%,
+        var(--poor) 25%,
+        var(--average) 25%,
+        var(--average) 50%,
+        var(--good) 50%,
+        var(--good) 75%,
+        var(--best) 75%,
+        var(--best) 100%
+      );
+      opacity: 0.85;
+    }
+
+    .gauge-markers {
+      position: relative;
+      height: 36px;
+      margin-top: -2px;
+    }
+
+    .marker {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      transition: left 0.4s ease;
+      z-index: 2;
+    }
+
+    .marker-line {
+      width: 2px;
+      height: 32px;
+      background: var(--text);
+      margin: 0 auto;
+    }
+
+    .marker.current .marker-line { background: var(--text); }
+    .marker.target .marker-line { background: var(--primary); height: 36px; }
+    .marker.single .marker-line { background: var(--primary); height: 36px; }
+
+    .marker-label {
+      font-size: 0.6875rem;
+      text-align: center;
+      white-space: nowrap;
+      margin-top: 2px;
+      color: var(--text-secondary);
+    }
+
+    .marker.target .marker-label,
+    .marker.single .marker-label { color: var(--primary); }
+
+    .verdict {
+      margin-top: 1.25rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding: 1rem 1.25rem;
+      background: rgba(255,255,255,0.02);
+      border-radius: 8px;
+    }
+
+    .footer {
+      padding: var(--pad);
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .footer p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .copy-feedback {
+      font-size: 0.75rem;
+      color: var(--tertiary);
+      margin-top: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .copy-feedback.show { opacity: 1; }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .hero-value, .fp-hero-value { font-size: 3.25rem; }
+      .bento { grid-template-columns: 1fr; }
+      .fp-secondary-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Card Activation Benchmarker</h1>
+    <p>Built by Danny Del Toro · <a href="https://dannydeltoro.framer.website" target="_blank" rel="noopener">dannydeltoro.framer.website</a></p>
+  </header>
+
+  <div class="main">
+    <aside class="inputs-panel">
+      <div class="mode-toggle" id="modeToggle">
+        <div class="mode-toggle-slider"></div>
+        <button type="button" id="btnQuick" class="active">Quick Mode</button>
+        <button type="button" id="btnFull">Full Profitability</button>
+      </div>
+
+      <div class="quick-inputs" id="quickInputs">
+        <div class="field">
+          <label for="cardsIssued">Cards issued / month</label>
+          <input type="number" id="cardsIssued" min="1" step="1" value="10000">
+        </div>
+        <div class="field">
+          <label for="currentRate">Current activation rate (%)</label>
+          <div class="field-row">
+            <input type="range" id="currentRateSlider" min="0" max="100" step="1" value="45">
+            <input type="number" id="currentRate" min="0" max="100" step="1" value="45">
+          </div>
+        </div>
+        <div class="field">
+          <label for="targetRate">Target activation rate (%)</label>
+          <div class="field-row">
+            <input type="range" id="targetRateSlider" min="0" max="100" step="1" value="60">
+            <input type="number" id="targetRate" min="0" max="100" step="1" value="60">
+          </div>
+        </div>
+        <div class="field">
+          <label for="avgSpend">Avg monthly spend / active card ($)</label>
+          <input type="number" id="avgSpend" min="0" step="1" value="800">
+        </div>
+        <div class="field">
+          <label for="interchangeRate">Interchange rate (%)</label>
+          <div class="field-row">
+            <input type="range" id="interchangeSlider" min="0.5" max="3.5" step="0.1" value="1.8">
+            <input type="number" id="interchangeRate" min="0.5" max="3.5" step="0.1" value="1.8">
+          </div>
+        </div>
+      </div>
+
+      <div class="fp-inputs" id="fpInputs">
+        <div class="field">
+          <label for="fpStartupCosts">Year 1 startup costs (creative, DM, campaign setup)</label>
+          <input type="number" id="fpStartupCosts" min="0" value="50000">
+          <p class="field-hint">One-time costs in Year 1 only — creative development, direct mail setup, email templates, campaign materials.</p>
+        </div>
+        <div class="collapsible-section open" data-section="portfolio">
+          <div class="collapsible-header"><span class="collapsible-arrow"></span> Portfolio Scale</div>
+          <div class="collapsible-body">
+            <div class="field"><label for="fpTotalCards">Total cards in portfolio</label><input type="number" id="fpTotalCards" min="1" value="25000"></div>
+            <div class="field"><label for="fpPctActive">% Active accounts</label><div class="field-row"><input type="range" id="fpPctActiveSlider" min="0" max="100" step="1" value="42"><input type="number" id="fpPctActive" min="0" max="100" value="42"></div></div>
+            <div class="field"><label for="fpAvgSpend">Avg monthly spend / active card ($)</label><input type="number" id="fpAvgSpend" min="0" value="850"></div>
+            <div class="field"><label for="fpAvgBalance">Avg monthly balance for revolvers ($)</label><input type="number" id="fpAvgBalance" min="0" value="4200"></div>
+            <div class="field"><label for="fpRevolveRate">% Revolve rate</label><div class="field-row"><input type="range" id="fpRevolveSlider" min="0" max="100" step="1" value="42"><input type="number" id="fpRevolveRate" min="0" max="100" value="42"></div></div>
+            <div class="field"><label for="fpAttrition">Annual attrition %</label><div class="field-row"><input type="range" id="fpAttritionSlider" min="0" max="30" step="1" value="3"><input type="number" id="fpAttrition" min="0" max="30" value="3"></div></div>
+            <div class="field"><label for="fpNewAccounts">New accounts added / month</label><input type="number" id="fpNewAccounts" min="0" value="150"></div>
+          </div>
+        </div>
+        <div class="collapsible-section open" data-section="revenue">
+          <div class="collapsible-header"><span class="collapsible-arrow"></span> Revenue</div>
+          <div class="collapsible-body">
+            <div class="field"><label for="fpInterchange">Interchange rate %</label><div class="field-row"><input type="range" id="fpInterchangeSlider" min="0.5" max="3.5" step="0.05" value="1.85"><input type="number" id="fpInterchange" min="0.5" max="3.5" step="0.05" value="1.85"></div></div>
+            <div class="field"><label for="fpApr">APR %</label><div class="field-row"><input type="range" id="fpAprSlider" min="0" max="30" step="0.5" value="14.5"><input type="number" id="fpApr" min="0" max="30" step="0.5" value="14.5"></div></div>
+            <div class="field"><label for="fpAnnualFee">Annual fee per card ($)</label><input type="number" id="fpAnnualFee" min="0" value="0"></div>
+            <div class="field"><label for="fpLateFee">Late fee ($)</label><input type="number" id="fpLateFee" min="0" value="25"></div>
+            <div class="field"><label for="fpPctLate">% Accounts charged late fee / month</label><div class="field-row"><input type="range" id="fpPctLateSlider" min="0" max="20" step="0.5" value="4"><input type="number" id="fpPctLate" min="0" max="20" step="0.5" value="4"></div></div>
+            <div class="field"><label for="fpDelinquency">Delinquency rate (% of active accounts 30+ days past due)</label><div class="field-row"><input type="range" id="fpDelinquencySlider" min="0" max="15" step="0.5" value="4"><input type="number" id="fpDelinquency" min="0" max="15" step="0.5" value="4"></div></div>
+            <div class="field"><label for="fpCaFee">Cash advance fee (% of CA amount)</label><input type="number" id="fpCaFee" min="0" step="0.1" value="0"></div>
+            <div class="field"><label for="fpBtFee">Balance transfer fee (% of BT amount)</label><input type="number" id="fpBtFee" min="0" step="0.1" value="0"></div>
+            <div class="field"><label for="fpOverlimitFee">Overlimit fee ($)</label><input type="number" id="fpOverlimitFee" min="0" value="0"></div>
+          </div>
+        </div>
+        <div class="collapsible-section open" data-section="rewards" id="rewardsSection">
+          <div class="collapsible-header"><span class="collapsible-arrow"></span> Rewards Program</div>
+          <div class="collapsible-body">
+            <div class="toggle-row"><label>Rewards program</label><div class="yesno-toggle" id="rewardsToggle"><button type="button" class="active" data-val="yes">Yes</button><button type="button" data-val="no">No</button></div></div>
+            <div id="rewardsFields">
+              <div class="field"><label for="fpBasePoints">Base points per $1 spent</label><input type="number" id="fpBasePoints" min="0" step="0.1" value="1"></div>
+              <div class="field"><label for="fpBonusCategory">Bonus category</label><select id="fpBonusCategory"><option value="none">None</option><option value="gas">Gas</option><option value="dining">Dining</option><option value="travel">Travel</option><option value="grocery">Grocery</option></select></div>
+              <div class="field"><label for="fpBonusPoints">Bonus points per $1 in bonus category</label><input type="number" id="fpBonusPoints" min="0" step="0.1" value="2"></div>
+              <div class="field"><label for="fpPctBonus">% of spend in bonus category</label><div class="field-row"><input type="range" id="fpPctBonusSlider" min="0" max="100" step="1" value="15"><input type="number" id="fpPctBonus" min="0" max="100" value="15"></div></div>
+              <div class="field"><label for="fpRedemptionCents">Redemption value (cents per point)</label><input type="number" id="fpRedemptionCents" min="0" step="0.1" value="1"></div>
+              <div class="field"><label for="fpPctRedeemed">% of points redeemed per year</label><div class="field-row"><input type="range" id="fpPctRedeemedSlider" min="0" max="100" step="1" value="35"><input type="number" id="fpPctRedeemed" min="0" max="100" value="35"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="collapsible-section open" data-section="expenses">
+          <div class="collapsible-header"><span class="collapsible-arrow"></span> Expenses</div>
+          <div class="collapsible-body">
+            <div class="field">
+              <label for="fpOpex">Fully-loaded opex per active account / year ($) <small style="font-weight:400;opacity:0.6;font-size:0.75rem;display:block;margin-top:2px">Include processor fees, servicing, fraud/dispute losses, collection activity, and employee cost allocation. Typical range: $75–$150 for credit unions.</small></label>
+              <input type="number" id="fpOpex" min="0" value="100">
+              <p class="field-hint">Include processor fees, fraud losses, employee costs, and servicing costs. Industry range: $75–$150 for credit unions.</p>
+            </div>
+            
+            <div class="field"><label for="fpCofRevolving">Cost of funds revolving %</label><div class="field-row"><input type="range" id="fpCofRevSlider" min="0" max="10" step="0.1" value="3.5"><input type="number" id="fpCofRevolving" min="0" max="10" step="0.1" value="3.5"></div></div>
+            <div class="field"><label for="fpCofTransacting">Cost of funds transacting %</label><div class="field-row"><input type="range" id="fpCofTransSlider" min="0" max="5" step="0.05" value="0.35"><input type="number" id="fpCofTransacting" min="0" max="5" step="0.05" value="0.35"></div></div>
+            <div class="field"><label for="fpChargeoff">Charge-off rate %</label><div class="field-row"><input type="range" id="fpChargeoffSlider" min="0" max="15" step="0.5" value="3"><input type="number" id="fpChargeoff" min="0" max="15" step="0.5" value="3"></div></div>
+            <div class="field"><label for="fpCostPerAcq">Cost per new account acquired ($)</label><input type="number" id="fpCostPerAcq" min="0" value="27"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="action-btn" id="btnReset">Reset to defaults</button>
+        <button type="button" class="action-btn primary" id="btnCopy">Copy results</button>
+      </div>
+      <div class="copy-feedback" id="copyFeedback">Copied to clipboard!</div>
+    </aside>
+
+    <section class="outputs-panel">
+      <div class="quick-outputs bento" id="quickOutputs">
+        <div class="bento-hero">
+          <div class="card">
+            <div class="hero-stat">
+              <div class="hero-value" id="outAnnualRevenue">+$0</div>
+              <div class="hero-label">Additional Annual Revenue</div>
+            </div>
+            <div class="insight-text" id="quickInsight"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="stat">
+            <span class="stat-label">Incremental active cards</span>
+            <span class="stat-value primary" id="outIncrementalCards">+0</span>
+          </div>
+          <div class="stat" style="margin-top:1.25rem">
+            <span class="stat-label">Revenue left on table / year</span>
+            <span class="stat-value secondary" id="outOpportunity">$0</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="stat">
+            <span class="stat-label">Additional monthly revenue</span>
+            <span class="stat-value tertiary" id="outMonthlyRevenue">+$0</span>
+          </div>
+          <div class="stat" style="margin-top:1.25rem">
+            <span class="stat-label">Revenue per inactive card / month</span>
+            <span class="stat-value secondary" id="outPerInactive">$0</span>
+          </div>
+        </div>
+        <div class="card bento-hero">
+          <h2>Benchmark Comparison</h2>
+          <select class="institution-select" id="institutionType">
+            <option value="credit_union">Credit Union</option>
+            <option value="regional_bank">Regional Bank</option>
+            <option value="neobank">Neobank / Fintech</option>
+            <option value="cobrand">Co-brand / Retail</option>
+          </select>
+          <div class="gauge-wrap">
+            <div class="gauge-labels"><span>Poor</span><span>Average</span><span>Good</span><span>Best-in-class</span></div>
+            <div class="gauge-track"></div>
+            <div class="gauge-markers">
+              <div class="marker current" id="markerCurrent"><div class="marker-line"></div><div class="marker-label" id="markerCurrentLabel">45%</div></div>
+              <div class="marker target" id="markerTarget"><div class="marker-line"></div><div class="marker-label" id="markerTargetLabel">60%</div></div>
+            </div>
+          </div>
+          <p class="verdict" id="verdict"></p>
+        </div>
+      </div>
+
+      <div class="fp-outputs" id="fpOutputs">
+        <div class="card">
+          <h2>Revenue Breakdown</h2>
+          <div id="fpRevenueBreakdown"></div>
+        </div>
+        <div class="card">
+          <h2>Expense Breakdown</h2>
+          <div id="fpExpenseBreakdown"></div>
+        </div>
+        <div class="card">
+          <h2>Net Income</h2>
+          <div class="hero-stat">
+            <div class="fp-hero-value" id="fpNetIncome">$0</div>
+            <div class="hero-label">Net Income / Year</div>
+          </div>
+          <div class="fp-secondary-grid">
+            <div class="stat"><span class="stat-label">Net income / account</span><span class="stat-value primary" id="fpNetPerAccount">$0</span></div>
+            <div class="stat"><span class="stat-label">Net income / active account</span><span class="stat-value primary" id="fpNetPerActive">$0</span></div>
+            <div class="stat"><span class="stat-label">Portfolio ROI</span><span class="stat-value" id="fpPortfolioRoi">0%</span></div>
+            <div class="stat"><span class="stat-label">Revenue / expense ratio</span><span class="stat-value" id="fpRevExpRatio">0x</span></div>
+          </div>
+          <div class="insight-text" id="fpInsight"></div>
+        </div>
+        <div class="card">
+          <h2>3-Year Projection</h2>
+          <table class="projection-table" id="fpProjectionTable"></table>
+        </div>
+        <div class="card">
+          <h2>Benchmark — Net Income / Account</h2>
+          <select class="institution-select" id="fpInstitutionType">
+            <option value="credit_union">Credit Union</option>
+            <option value="regional_bank">Regional Bank</option>
+            <option value="neobank">Neobank / Fintech</option>
+            <option value="cobrand">Co-brand / Retail</option>
+          </select>
+          <div class="gauge-wrap">
+            <div class="gauge-labels"><span>Poor</span><span>Average</span><span>Good</span><span>Best-in-class</span></div>
+            <div class="gauge-track"></div>
+            <div class="gauge-markers">
+              <div class="marker single" id="fpMarker"><div class="marker-line"></div><div class="marker-label" id="fpMarkerLabel">$0</div></div>
+            </div>
+          </div>
+          <p class="verdict" id="fpVerdict"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <p>Interchange rates and benchmark data are illustrative estimates based on industry averages. Actual results will vary. Built for educational and planning purposes.</p>
+  </footer>
+
+  <script>
+    const BENCHMARKS = {
+      credit_union: { poor: 35, average: 50, good: 65, label: 'credit unions' },
+      regional_bank: { poor: 30, average: 45, good: 60, label: 'regional banks' },
+      neobank: { poor: 40, average: 55, good: 70, label: 'neobanks and fintechs' },
+      cobrand: { poor: 25, average: 40, good: 55, label: 'co-brand and retail programs' }
+    };
+
+    const BENCHMARKS_FP = {
+      credit_union: { poor: 40, average: 70, good: 100, max: 150, label: 'credit unions' },
+      regional_bank: { poor: 50, average: 85, good: 120, max: 180, label: 'regional banks' },
+      neobank: { poor: 20, average: 45, good: 75, max: 110, label: 'neobanks and fintechs' },
+      cobrand: { poor: 30, average: 60, good: 90, max: 130, label: 'co-brand and retail programs' }
+    };
+
+    const FP_DEFAULTS = {
+      startupCosts: 50000, totalCards: 25000, pctActive: 42, avgSpend: 850, avgBalance: 4200,
+      revolveRate: 42, attrition: 3, interchange: 1.85, apr: 14.5,
+      annualFee: 0, lateFee: 25, pctLate: 4, delinquencyRate: 4, caFeePct: 0, btFeePct: 0, overlimitFee: 0,
+      rewardsEnabled: true, basePoints: 1, bonusPoints: 2, pctBonus: 15, redemptionCents: 1, pctRedeemed: 35,
+      opex: 100, cofRevolving: 3.5, cofTransacting: 0.35, chargeoff: 3,
+      costPerAcq: 27, newAccounts: 150, institutionType: 'credit_union'
+    };
+
+    const QUICK_DEFAULTS = {
+      cardsIssued: 10000, currentRate: 45, targetRate: 60, avgSpend: 800,
+      interchangeRate: 1.8, institutionType: 'credit_union'
+    };
+
+    let currentMode = 'quick';
+    let rewardsEnabled = true;
+    const animState = {};
+
+    function formatNumber(n, decimals = 0) {
+      return n.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function formatCurrency(n, decimals = 0) {
+      const prefix = n < 0 ? '-$' : '$';
+      return prefix + formatNumber(Math.abs(n), decimals);
+    }
+
+    function formatSignedCurrency(n, decimals = 0) {
+      if (n === 0) return '+$0';
+      const sign = n > 0 ? '+' : '-';
+      return sign + '$' + formatNumber(Math.abs(n), decimals);
+    }
+
+    function formatSignedNumber(n, decimals = 0) {
+      if (n === 0) return '+0';
+      const sign = n > 0 ? '+' : '-';
+      return sign + formatNumber(Math.abs(n), decimals);
+    }
+
+    function getRating(rate, bench) {
+      if (rate > bench.good) return 'Best-in-class';
+      if (rate >= bench.average) return 'Good';
+      if (rate >= bench.poor) return 'Average';
+      return 'Poor';
+    }
+
+    function getVerdict(current, target, bench) {
+      const currentRating = getRating(current, bench);
+      const targetRating = getRating(target, bench);
+      const label = bench.label;
+
+      let currentPhrase;
+      if (currentRating === 'Poor') {
+        currentPhrase = `Your current rate is below average for ${label}.`;
+      } else if (currentRating === 'Average') {
+        currentPhrase = `Your current rate is average for ${label}.`;
+      } else if (currentRating === 'Good') {
+        currentPhrase = `Your current rate is above average for ${label}.`;
+      } else {
+        currentPhrase = `Your current rate is best-in-class for ${label}.`;
+      }
+
+      let targetPhrase;
+      if (targetRating === 'Poor') {
+        targetPhrase = 'Your target rate would still be below average.';
+      } else if (targetRating === 'Average') {
+        targetPhrase = 'Your target rate would put you at the industry average.';
+      } else if (targetRating === 'Good') {
+        targetPhrase = 'Your target rate would put you in the top half of the market.';
+      } else {
+        targetPhrase = 'Your target rate would put you in the top quartile.';
+      }
+
+      return currentPhrase + ' ' + targetPhrase;
+    }
+
+    function animateValue(el, endValue, formatter, duration = 600) {
+      const key = el.id;
+      const startValue = animState[key] !== undefined ? animState[key] : endValue;
+      animState[key] = endValue;
+
+      if (startValue === endValue) {
+        el.textContent = formatter(endValue);
+        return;
+      }
+
+      const startTime = performance.now();
+
+      function tick(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        const current = startValue + (endValue - startValue) * eased;
+        el.textContent = formatter(current);
+
+        if (progress < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          el.textContent = formatter(endValue);
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    function linkSlider(sliderId, inputId, onChange) {
+      const slider = document.getElementById(sliderId);
+      const input = document.getElementById(inputId);
+
+      slider.addEventListener('input', () => {
+        input.value = slider.value;
+        onChange();
+      });
+
+      input.addEventListener('input', () => {
+        let val = parseFloat(input.value);
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        if (isNaN(val)) return;
+        val = Math.max(min, Math.min(max, val));
+        slider.value = val;
+        input.value = val;
+        onChange();
+      });
+    }
+
+    function readQuickInputs() {
+      const cardsIssued = Math.max(1, parseInt(document.getElementById('cardsIssued').value, 10) || 0);
+      const currentRate = Math.max(0, Math.min(100, parseFloat(document.getElementById('currentRate').value) || 0));
+      let targetRate = Math.max(0, Math.min(100, parseFloat(document.getElementById('targetRate').value) || 0));
+      if (targetRate < currentRate) {
+        targetRate = currentRate;
+        document.getElementById('targetRate').value = targetRate;
+        document.getElementById('targetRateSlider').value = targetRate;
+      }
+      const avgSpend = Math.max(0, parseFloat(document.getElementById('avgSpend').value) || 0);
+      const interchangeRate = Math.max(0.5, Math.min(3.5, parseFloat(document.getElementById('interchangeRate').value) || 1.8));
+      const institutionType = document.getElementById('institutionType').value;
+      return { cardsIssued, currentRate, targetRate, avgSpend, interchangeRate, institutionType };
+    }
+
+    function calculateQuick(inputs) {
+      const { cardsIssued, currentRate, targetRate, avgSpend, interchangeRate } = inputs;
+      const activeCurrent = cardsIssued * (currentRate / 100);
+      const activeTarget = cardsIssued * (targetRate / 100);
+      const incrementalActive = activeTarget - activeCurrent;
+      const monthlyInterchangeCurrent = activeCurrent * avgSpend * (interchangeRate / 100);
+      const monthlyInterchangeTarget = activeTarget * avgSpend * (interchangeRate / 100);
+      const incrementalMonthly = monthlyInterchangeTarget - monthlyInterchangeCurrent;
+      const incrementalAnnual = incrementalMonthly * 12;
+      const revenuePerInactive = avgSpend * (interchangeRate / 100);
+      const opportunityCost = (cardsIssued - activeCurrent) * revenuePerInactive * 12;
+      return { activeCurrent, activeTarget, incrementalActive, incrementalMonthly, incrementalAnnual, revenuePerInactive, opportunityCost };
+    }
+
+    function getQuickInsight(inputs, results, bench) {
+      const gap = bench.average - inputs.currentRate;
+      const halfGapRate = inputs.currentRate + gap / 2;
+      const halfGapActive = inputs.cardsIssued * (halfGapRate / 100);
+      const halfGapMonthly = (halfGapActive - results.activeCurrent) * inputs.avgSpend * (inputs.interchangeRate / 100);
+      const halfGapAnnual = halfGapMonthly * 12;
+
+      let insight = '';
+      if (inputs.currentRate < bench.average) {
+        insight = `Your activation rate sits <strong>${formatNumber(gap, 0)} points below</strong> the industry average for ${bench.label}. Closing half that gap (${formatNumber(halfGapRate, 0)}%) would generate an estimated <strong>${formatCurrency(Math.round(halfGapAnnual))}</strong> in additional annual interchange revenue.`;
+      } else if (inputs.currentRate < bench.good) {
+        insight = `Your activation rate is above average for ${bench.label}, but still below top-tier performance. You're leaving <strong>${formatCurrency(Math.round(results.opportunityCost))}</strong> on the table annually from inactive cards.`;
+      } else {
+        insight = `Your activation rate is strong relative to ${bench.label}. Even at this level, inactive cards represent <strong>${formatCurrency(Math.round(results.opportunityCost))}</strong> in annual opportunity cost.`;
+      }
+
+      if (results.incrementalAnnual > 0) {
+        insight += ` Moving from ${formatNumber(inputs.currentRate, 0)}% to ${formatNumber(inputs.targetRate, 0)}% unlocks <strong>${formatSignedCurrency(Math.round(results.incrementalAnnual))}</strong> per year.`;
+      }
+      return insight;
+    }
+
+    function readFPInputs() {
+      const n = id => parseFloat(document.getElementById(id).value) || 0;
+      const ni = id => Math.max(0, parseInt(document.getElementById(id).value, 10) || 0);
+      return {
+        startupCosts: Math.max(0, n('fpStartupCosts')),
+        totalCards: Math.max(1, ni('fpTotalCards')),
+        pctActive: Math.max(0, Math.min(100, n('fpPctActive'))),
+        avgSpend: Math.max(0, n('fpAvgSpend')),
+        avgBalance: Math.max(0, n('fpAvgBalance')),
+        revolveRate: Math.max(0, Math.min(100, n('fpRevolveRate'))),
+        attrition: Math.max(0, Math.min(30, n('fpAttrition'))),
+        interchange: Math.max(0.5, Math.min(3.5, n('fpInterchange'))),
+        apr: Math.max(0, Math.min(30, n('fpApr'))),
+        annualFee: Math.max(0, n('fpAnnualFee')),
+        lateFee: Math.max(0, n('fpLateFee')),
+        pctLate: Math.max(0, Math.min(20, n('fpPctLate'))),
+        delinquencyRate: Math.max(0, Math.min(15, n('fpDelinquency'))),
+        caFeePct: Math.max(0, n('fpCaFee')),
+        btFeePct: Math.max(0, n('fpBtFee')),
+        overlimitFee: Math.max(0, n('fpOverlimitFee')),
+        rewardsEnabled,
+        basePoints: Math.max(0, n('fpBasePoints')),
+        bonusPoints: Math.max(0, n('fpBonusPoints')),
+        pctBonus: Math.max(0, Math.min(100, n('fpPctBonus'))),
+        redemptionCents: Math.max(0, n('fpRedemptionCents')),
+        pctRedeemed: Math.max(0, Math.min(100, n('fpPctRedeemed'))),
+        opex: Math.max(0, n('fpOpex')),
+        cofRevolving: Math.max(0, Math.min(10, n('fpCofRevolving'))),
+        cofTransacting: Math.max(0, Math.min(5, n('fpCofTransacting'))),
+        chargeoff: Math.max(0, Math.min(15, n('fpChargeoff'))),
+        costPerAcq: Math.max(0, n('fpCostPerAcq')),
+        newAccounts: Math.max(0, ni('fpNewAccounts')),
+        institutionType: document.getElementById('fpInstitutionType').value
+      };
+    }
+
+    function calculateFPForYear(baseInputs, overrides) {
+      const inputs = { ...baseInputs, ...overrides };
+      const totalCards = inputs.totalCards;
+      const pctActive = inputs.pctActive;
+      const avgSpend = inputs.avgSpend;
+      const avgBalance = inputs.avgBalance;
+      const cofRevRate = inputs.cofRevolvingRate !== undefined ? inputs.cofRevolvingRate : inputs.cofRevolving;
+      const cofTransRate = inputs.cofTransactingRate !== undefined ? inputs.cofTransactingRate : inputs.cofTransacting;
+      const startup = inputs.startupCosts !== undefined ? inputs.startupCosts : 0;
+
+      const activeAccounts = totalCards * (pctActive / 100);
+      const revolvers = activeAccounts * (inputs.revolveRate / 100);
+      const transactors = activeAccounts - revolvers;
+      const revolvingPool = revolvers * avgBalance;
+      const transactingPool = transactors * avgSpend;
+      const annualSales = activeAccounts * avgSpend * 12;
+
+      const interchangeAnnual = annualSales * (inputs.interchange / 100);
+      const financeCharges = revolvingPool * (inputs.apr / 100);
+      const lateFeeRev = activeAccounts * (inputs.pctLate / 100) * inputs.lateFee * 12;
+      const annualFeeRev = totalCards * inputs.annualFee;
+      const caFeeRev = annualSales * 0.02 * (inputs.caFeePct / 100);
+      const btFeeRev = 0;
+      const overlimitFeeRev = activeAccounts * (inputs.delinquencyRate / 100) * 0.3 * inputs.overlimitFee * 12;
+
+      const totalRevenue = interchangeAnnual + financeCharges + lateFeeRev + annualFeeRev + caFeeRev + btFeeRev + overlimitFeeRev;
+
+      let rewardsCost = 0;
+      if (inputs.rewardsEnabled) {
+        const totalPoints = annualSales * inputs.basePoints + (annualSales * (inputs.pctBonus / 100)) * inputs.bonusPoints;
+        const pointsRedeemed = totalPoints * (inputs.pctRedeemed / 100);
+        rewardsCost = pointsRedeemed * (inputs.redemptionCents / 100);
+      }
+
+      const feeRevenue = annualFeeRev + lateFeeRev + caFeeRev + overlimitFeeRev;
+      const netRevenue = interchangeAnnual + financeCharges + feeRevenue - rewardsCost;
+
+      const opex = activeAccounts * inputs.opex;
+      const cofRev = revolvingPool * (cofRevRate / 100);
+      const cofTrans = transactingPool * (cofTransRate / 100);
+      const cofTotal = cofRev + cofTrans;
+      const chargeoffs = revolvingPool * (inputs.chargeoff / 100);
+      const delinquencyCost = 0; // folded into opex
+      const acqCost = inputs.newAccounts * 12 * inputs.costPerAcq;
+      const totalExpenses = opex + cofRev + cofTrans + chargeoffs + acqCost + rewardsCost + startup;
+
+      const netIncome = totalRevenue - totalExpenses;
+      const netPerAccount = totalCards > 0 ? netIncome / totalCards : 0;
+      const netPerActive = activeAccounts > 0 ? netIncome / activeAccounts : 0;
+      const portfolioRoi = totalExpenses > 0 ? (netIncome / totalExpenses) * 100 : 0;
+      const revExpRatio = totalExpenses > 0 ? totalRevenue / totalExpenses : 0;
+
+      return {
+        totalCards, activeAccounts, revolvers, transactors, annualSales,
+        interchangeAnnual, financeCharges, feeRevenue, annualFeeRev, lateFeeRev,
+        caFeeRev, overlimitFeeRev, rewardsCost, netRevenue, totalRevenue,
+        opex, cofTotal, cofRev, cofTrans, chargeoffs, acqCost, startup, totalExpenses,
+        netIncome, netPerAccount, netPerActive, portfolioRoi, revExpRatio
+      };
+    }
+
+    function buildProjectionYears(inputs) {
+      const grossNewPerYear = inputs.newAccounts * 12;
+
+      const totalCardsY1 = inputs.totalCards;
+      const attritionY1 = totalCardsY1 * (inputs.attrition / 100);
+      const totalCardsY2 = totalCardsY1 + grossNewPerYear - attritionY1;
+      const attritionY2 = totalCardsY2 * (inputs.attrition / 100);
+      const totalCardsY3 = totalCardsY2 + grossNewPerYear - attritionY2;
+
+      const pctActiveY1 = inputs.pctActive;
+      const pctActiveY2 = Math.min(85, inputs.pctActive + 1.5);
+      const pctActiveY3 = Math.min(85, inputs.pctActive + 2.5);
+
+      const avgSpendY1 = inputs.avgSpend;
+      const avgSpendY2 = inputs.avgSpend * 1.04;
+      const avgSpendY3 = avgSpendY2 * 1.025;
+
+      const avgBalanceY1 = inputs.avgBalance;
+      const avgBalanceY2 = inputs.avgBalance * 1.02;
+      const avgBalanceY3 = inputs.avgBalance * 1.04;
+
+      const cofRevY1 = inputs.cofRevolving;
+      const cofRevY2 = inputs.cofRevolving * 0.92;
+      const cofRevY3 = inputs.cofRevolving * 0.88;
+      const cofTransY1 = inputs.cofTransacting;
+      const cofTransY2 = inputs.cofTransacting * 0.92;
+      const cofTransY3 = inputs.cofTransacting * 0.88;
+
+      const y1 = calculateFPForYear(inputs, {
+        totalCards: totalCardsY1, pctActive: pctActiveY1, avgSpend: avgSpendY1, avgBalance: avgBalanceY1,
+        cofRevolvingRate: cofRevY1, cofTransactingRate: cofTransY1, startupCosts: inputs.startupCosts
+      });
+      const y2 = calculateFPForYear(inputs, {
+        totalCards: totalCardsY2, pctActive: pctActiveY2, avgSpend: avgSpendY2, avgBalance: avgBalanceY2,
+        cofRevolvingRate: cofRevY2, cofTransactingRate: cofTransY2, startupCosts: 0
+      });
+      const y3 = calculateFPForYear(inputs, {
+        totalCards: totalCardsY3, pctActive: pctActiveY3, avgSpend: avgSpendY3, avgBalance: avgBalanceY3,
+        cofRevolvingRate: cofRevY3, cofTransactingRate: cofTransY3, startupCosts: 0
+      });
+
+      return { y1, y2, y3 };
+    }
+
+    function getRatingFP(value, bench) {
+      if (value > bench.good) return 'Best-in-class';
+      if (value >= bench.average) return 'Good';
+      if (value >= bench.poor) return 'Average';
+      return 'Poor';
+    }
+
+    function getFPVerdict(value, bench) {
+      const rating = getRatingFP(value, bench);
+      if (rating === 'Poor') return `Net income per account is below average for ${bench.label} — review expense drivers and rewards economics.`;
+      if (rating === 'Average') return `Net income per account is in the average range for ${bench.label}.`;
+      if (rating === 'Good') return `Net income per account is above average for ${bench.label}.`;
+      return `Net income per account is best-in-class for ${bench.label}.`;
+    }
+
+    function getFPInsight(r, bench) {
+      const rating = getRatingFP(r.netPerAccount, bench);
+      const expenseDrivers = [
+        { name: 'charge-offs', val: r.chargeoffs },
+        { name: 'rewards cost', val: r.rewardsCost },
+        { name: 'cost of funds', val: r.cofTotal },
+        { name: 'operating expense', val: r.opex },
+        { name: 'acquisition cost', val: r.acqCost },
+      ].sort((a, b) => b.val - a.val);
+
+      let insight = '';
+      if (rating === 'Poor' || rating === 'Average') {
+        const top = expenseDrivers[0];
+        const topPct = r.totalRevenue > 0 ? (top.val / r.totalRevenue) * 100 : 0;
+        if (top.name === 'charge-offs') {
+          insight = `Net income per account is below benchmark. <strong>Charge-offs</strong> are your largest expense relative to revenue at ${formatCurrency(Math.round(top.val))} (${formatNumber(topPct, 1)}% of revenue) — tightening underwriting or collections could lift profitability.`;
+        } else if (top.name === 'rewards cost') {
+          insight = `Net income per account is below benchmark. <strong>Rewards cost</strong> is the dominant drag at ${formatCurrency(Math.round(top.val))} (${formatNumber(topPct, 1)}% of revenue) — consider redemption caps or bonus category limits.`;
+        } else {
+          insight = `Net income per account is below benchmark. <strong>${top.name}</strong> is the largest cost driver at ${formatCurrency(Math.round(top.val))}. Review portfolio economics against ${bench.label} peers averaging ${formatCurrency(bench.average)}–${formatCurrency(bench.good)} per account.`;
+        }
+      } else {
+        insight = `Portfolio economics are healthy relative to ${bench.label}. Net income of <strong>${formatCurrency(Math.round(r.netPerAccount))}</strong> per account with a <strong>${formatNumber(r.revExpRatio, 1)}x</strong> revenue-to-expense ratio suggests room to invest in growth.`;
+      }
+      return insight;
+    }
+
+    function renderBreakdown(containerId, lines, maxVal) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = lines.map(l => `
+        <div class="breakdown-line">
+          <span class="breakdown-label">${l.label}</span>
+          <span class="breakdown-amount" style="color:${l.color}">${l.amount}</span>
+          <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${maxVal > 0 ? Math.min(100, (l.val / maxVal) * 100) : 0}%;background:${l.color}"></div></div>
+        </div>`).join('');
+    }
+
+    function updateQuickOutputs() {
+      const inputs = readQuickInputs();
+      const results = calculateQuick(inputs);
+      const bench = BENCHMARKS[inputs.institutionType];
+
+      animateValue(document.getElementById('outIncrementalCards'), results.incrementalActive, v => formatSignedNumber(Math.round(v)));
+      animateValue(document.getElementById('outMonthlyRevenue'), results.incrementalMonthly, v => formatSignedCurrency(Math.round(v)));
+      animateValue(document.getElementById('outAnnualRevenue'), results.incrementalAnnual, v => formatSignedCurrency(Math.round(v)));
+      animateValue(document.getElementById('outOpportunity'), results.opportunityCost, v => formatCurrency(Math.round(v)));
+      animateValue(document.getElementById('outPerInactive'), results.revenuePerInactive, v => formatCurrency(v, 2));
+
+      document.getElementById('quickInsight').innerHTML = getQuickInsight(inputs, results, bench);
+
+      const currentPct = Math.min(100, Math.max(0, inputs.currentRate));
+      const targetPct = Math.min(100, Math.max(0, inputs.targetRate));
+      document.getElementById('markerCurrent').style.left = currentPct + '%';
+      document.getElementById('markerTarget').style.left = targetPct + '%';
+      document.getElementById('markerCurrentLabel').textContent = formatNumber(inputs.currentRate, 0) + '%';
+      document.getElementById('markerTargetLabel').textContent = formatNumber(inputs.targetRate, 0) + '%';
+      document.getElementById('verdict').textContent = getVerdict(inputs.currentRate, inputs.targetRate, bench);
+    }
+
+    function fmtDelta(curr, prev) {
+      if (prev === 0) return '';
+      const pct = ((curr - prev) / Math.abs(prev)) * 100;
+      const cls = pct >= 0 ? 'delta-up' : 'delta-down';
+      const arrow = pct >= 0 ? '↑' : '↓';
+      return `<span class="${cls}">${arrow}${formatNumber(Math.abs(pct), 1)}%</span>`;
+    }
+
+    function projectionSection(title) {
+      return `<tr><td colspan="4" style="font-weight:600;font-size:0.6875rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-secondary);padding-top:1rem">${title}</td></tr>`;
+    }
+
+    function projectionRow(label, y1, y2, y3, opts = {}) {
+      const { highlight, netDelta, pct } = opts;
+      const cls = highlight ? ' class="highlight"' : '';
+      const fmt = pct ? v => formatNumber(Math.round(v)) + '%' : v => formatCurrency(Math.round(v));
+      const y2Cell = netDelta
+        ? `${fmt(y2)} ${fmtDelta(y2, y1)}`
+        : fmt(y2);
+      const y3Cell = netDelta
+        ? `${fmt(y3)} ${fmtDelta(y3, y2)}`
+        : fmt(y3);
+      return `<tr${cls}><td>${label}</td><td>${fmt(y1)}</td><td>${y2Cell}</td><td>${y3Cell}</td></tr>`;
+    }
+
+    function buildProjectionTable(y1, y2, y3) {
+      return `
+        <thead><tr><th></th><th>Year 1</th><th>Year 2</th><th>Year 3</th></tr></thead>
+        <tbody>
+          ${projectionSection('PORTFOLIO')}
+          ${projectionRow('Total accounts', y1.totalCards, y2.totalCards, y3.totalCards)}
+          ${projectionRow('Active accounts', y1.activeAccounts, y2.activeAccounts, y3.activeAccounts)}
+          ${projectionRow('Annual sales volume', y1.annualSales, y2.annualSales, y3.annualSales)}
+          ${projectionSection('REVENUE')}
+          ${projectionRow('Interchange', y1.interchangeAnnual, y2.interchangeAnnual, y3.interchangeAnnual)}
+          ${projectionRow('Finance charges', y1.financeCharges, y2.financeCharges, y3.financeCharges)}
+          ${projectionRow('Late fee revenue', y1.lateFeeRev, y2.lateFeeRev, y3.lateFeeRev)}
+          ${projectionRow('Annual fee revenue', y1.annualFeeRev, y2.annualFeeRev, y3.annualFeeRev)}
+          ${projectionRow('Total Revenue', y1.totalRevenue, y2.totalRevenue, y3.totalRevenue)}
+          ${projectionSection('EXPENSES')}
+          ${projectionRow('Year 1 startup costs', y1.startup, y2.startup, y3.startup)}
+          ${projectionRow('Operating expense', y1.opex, y2.opex, y3.opex)}
+          ${projectionRow('Cost of funds', y1.cofTotal, y2.cofTotal, y3.cofTotal)}
+          ${projectionRow('Charge-offs', y1.chargeoffs, y2.chargeoffs, y3.chargeoffs)}
+          ${projectionRow('Rewards cost', y1.rewardsCost, y2.rewardsCost, y3.rewardsCost)}
+          ${projectionRow('Acquisition cost', y1.acqCost, y2.acqCost, y3.acqCost)}
+          ${projectionRow('Total Expenses', y1.totalExpenses, y2.totalExpenses, y3.totalExpenses)}
+          ${projectionSection('NET')}
+          ${projectionRow('Net income', y1.netIncome, y2.netIncome, y3.netIncome, { highlight: true, netDelta: true })}
+          ${projectionRow('Net income / account', y1.netPerAccount, y2.netPerAccount, y3.netPerAccount, { highlight: true, netDelta: true })}
+          ${projectionRow('Portfolio ROI %', y1.portfolioRoi, y2.portfolioRoi, y3.portfolioRoi, { pct: true, netDelta: true })}
+        </tbody>`;
+    }
+
+    function updateFPOutputs() {
+      const inputs = readFPInputs();
+      const { y1, y2, y3 } = buildProjectionYears(inputs);
+      const bench = BENCHMARKS_FP[inputs.institutionType];
+
+      const revMax = Math.max(y1.interchangeAnnual, y1.financeCharges, y1.feeRevenue, y1.rewardsCost, 1);
+      renderBreakdown('fpRevenueBreakdown', [
+        { label: 'Interchange', amount: formatCurrency(Math.round(y1.interchangeAnnual)), val: y1.interchangeAnnual, color: '#4a6cf7' },
+        { label: 'Finance charges', amount: formatCurrency(Math.round(y1.financeCharges)), val: y1.financeCharges, color: '#8b5cf6' },
+        { label: 'Fee revenue', amount: formatCurrency(Math.round(y1.feeRevenue)), val: y1.feeRevenue, color: '#2dd4bf' },
+        { label: 'Rewards cost', amount: formatCurrency(-Math.round(y1.rewardsCost)), val: y1.rewardsCost, color: '#f43f5e' },
+        { label: 'Total Net Revenue', amount: formatCurrency(Math.round(y1.netRevenue)), val: y1.netRevenue, color: '#fafafa' }
+      ], revMax);
+
+      const expMax = Math.max(y1.opex, y1.cofTotal, y1.chargeoffs, y1.acqCost, y1.startup, 1);
+      renderBreakdown('fpExpenseBreakdown', [
+        { label: 'Operating expense', amount: formatCurrency(Math.round(y1.opex)), val: y1.opex, color: '#8b5cf6' },
+        { label: 'Cost of funds', amount: formatCurrency(Math.round(y1.cofTotal)), val: y1.cofTotal, color: '#4a6cf7' },
+        { label: 'Charge-offs', amount: formatCurrency(Math.round(y1.chargeoffs)), val: y1.chargeoffs, color: '#f43f5e' },
+        { label: 'Acquisition cost', amount: formatCurrency(Math.round(y1.acqCost)), val: y1.acqCost, color: '#2dd4bf' },
+        { label: 'Total Expenses', amount: formatCurrency(Math.round(y1.totalExpenses)), val: y1.totalExpenses, color: '#fafafa' }
+      ], expMax);
+
+      animateValue(document.getElementById('fpNetIncome'), y1.netIncome, v => formatCurrency(Math.round(v)));
+      animateValue(document.getElementById('fpNetPerAccount'), y1.netPerAccount, v => formatCurrency(Math.round(v)));
+      animateValue(document.getElementById('fpNetPerActive'), y1.netPerActive, v => formatCurrency(Math.round(v)));
+
+      const roiEl = document.getElementById('fpPortfolioRoi');
+      animateValue(roiEl, y1.portfolioRoi, v => formatNumber(Math.round(v)) + '%');
+      roiEl.style.color = y1.portfolioRoi >= 0 ? '#2dd4bf' : '#f43f5e';
+
+      animateValue(document.getElementById('fpRevExpRatio'), y1.revExpRatio, v => formatNumber(v, 1) + 'x');
+
+      document.getElementById('fpProjectionTable').innerHTML = buildProjectionTable(y1, y2, y3);
+
+      const markerPct = Math.min(98, Math.max(2, (y1.netPerAccount / bench.max) * 100));
+      document.getElementById('fpMarker').style.left = markerPct + '%';
+      document.getElementById('fpMarkerLabel').textContent = formatCurrency(Math.round(y1.netPerAccount));
+      document.getElementById('fpVerdict').textContent = getFPVerdict(y1.netPerAccount, bench);
+      document.getElementById('fpInsight').innerHTML = getFPInsight(y1, bench);
+    }
+
+    function updateOutputs() {
+      if (currentMode === 'quick') updateQuickOutputs();
+      else updateFPOutputs();
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      const isFP = mode === 'full';
+      document.getElementById('btnQuick').classList.toggle('active', !isFP);
+      document.getElementById('btnFull').classList.toggle('active', isFP);
+      document.getElementById('modeToggle').classList.toggle('fp', isFP);
+      document.getElementById('quickInputs').classList.toggle('hidden', isFP);
+      document.getElementById('fpInputs').classList.toggle('visible', isFP);
+      document.getElementById('quickOutputs').classList.toggle('hidden', isFP);
+      document.getElementById('fpOutputs').classList.toggle('visible', isFP);
+      updateOutputs();
+    }
+
+    function resetDefaults() {
+      if (currentMode === 'quick') {
+        document.getElementById('cardsIssued').value = QUICK_DEFAULTS.cardsIssued;
+        document.getElementById('currentRate').value = QUICK_DEFAULTS.currentRate;
+        document.getElementById('currentRateSlider').value = QUICK_DEFAULTS.currentRate;
+        document.getElementById('targetRate').value = QUICK_DEFAULTS.targetRate;
+        document.getElementById('targetRateSlider').value = QUICK_DEFAULTS.targetRate;
+        document.getElementById('avgSpend').value = QUICK_DEFAULTS.avgSpend;
+        document.getElementById('interchangeRate').value = QUICK_DEFAULTS.interchangeRate;
+        document.getElementById('interchangeSlider').value = QUICK_DEFAULTS.interchangeRate;
+        document.getElementById('institutionType').value = QUICK_DEFAULTS.institutionType;
+      } else {
+        const d = FP_DEFAULTS;
+        document.getElementById('fpStartupCosts').value = d.startupCosts;
+        document.getElementById('fpTotalCards').value = d.totalCards;
+        document.getElementById('fpPctActive').value = d.pctActive;
+        document.getElementById('fpPctActiveSlider').value = d.pctActive;
+        document.getElementById('fpAvgSpend').value = d.avgSpend;
+        document.getElementById('fpAvgBalance').value = d.avgBalance;
+        document.getElementById('fpRevolveRate').value = d.revolveRate;
+        document.getElementById('fpRevolveSlider').value = d.revolveRate;
+        document.getElementById('fpAttrition').value = d.attrition;
+        document.getElementById('fpAttritionSlider').value = d.attrition;
+        document.getElementById('fpInterchange').value = d.interchange;
+        document.getElementById('fpInterchangeSlider').value = d.interchange;
+        document.getElementById('fpApr').value = d.apr;
+        document.getElementById('fpAprSlider').value = d.apr;
+        document.getElementById('fpAnnualFee').value = d.annualFee;
+        document.getElementById('fpLateFee').value = d.lateFee;
+        document.getElementById('fpPctLate').value = d.pctLate;
+        document.getElementById('fpPctLateSlider').value = d.pctLate;
+        document.getElementById('fpDelinquency').value = d.delinquencyRate;
+        document.getElementById('fpDelinquencySlider').value = d.delinquencyRate;
+        document.getElementById('fpCaFee').value = d.caFeePct;
+        document.getElementById('fpBtFee').value = d.btFeePct;
+        document.getElementById('fpOverlimitFee').value = d.overlimitFee;
+        document.getElementById('fpBasePoints').value = d.basePoints;
+        document.getElementById('fpBonusPoints').value = d.bonusPoints;
+        document.getElementById('fpPctBonus').value = d.pctBonus;
+        document.getElementById('fpPctBonusSlider').value = d.pctBonus;
+        document.getElementById('fpRedemptionCents').value = d.redemptionCents;
+        document.getElementById('fpPctRedeemed').value = d.pctRedeemed;
+        document.getElementById('fpPctRedeemedSlider').value = d.pctRedeemed;
+        document.getElementById('fpOpex').value = d.opex;
+        document.getElementById('fpCofRevolving').value = d.cofRevolving;
+        document.getElementById('fpCofRevSlider').value = d.cofRevolving;
+        document.getElementById('fpCofTransacting').value = d.cofTransacting;
+        document.getElementById('fpCofTransSlider').value = d.cofTransacting;
+        document.getElementById('fpChargeoff').value = d.chargeoff;
+        document.getElementById('fpChargeoffSlider').value = d.chargeoff;
+        document.getElementById('fpCostPerAcq').value = d.costPerAcq;
+        document.getElementById('fpNewAccounts').value = d.newAccounts;
+        document.getElementById('fpInstitutionType').value = d.institutionType;
+        setRewardsEnabled(d.rewardsEnabled);
+      }
+      updateOutputs();
+    }
+
+    function setRewardsEnabled(enabled) {
+      rewardsEnabled = enabled;
+      document.querySelectorAll('#rewardsToggle button').forEach(b => b.classList.toggle('active', b.dataset.val === (enabled ? 'yes' : 'no')));
+      document.getElementById('rewardsFields').style.display = enabled ? 'block' : 'none';
+    }
+
+    function getInstitutionLabel(value) {
+      const labels = {
+        credit_union: 'Credit Union',
+        regional_bank: 'Regional Bank',
+        neobank: 'Neobank / Fintech',
+        cobrand: 'Co-brand / Retail'
+      };
+      return labels[value] || value;
+    }
+
+    function copyResults() {
+      let text;
+      if (currentMode === 'quick') {
+        const inputs = readQuickInputs();
+        const results = calculateQuick(inputs);
+        const bench = BENCHMARKS[inputs.institutionType];
+        text = [
+          'CARD ACTIVATION BENCHMARKER — RESULTS SUMMARY',
+          'Generated by Danny Del Toro · dannydeltoro.framer.website',
+          '',
+          'INPUTS',
+          `Cards issued / month: ${formatNumber(inputs.cardsIssued)}`,
+          `Current activation rate: ${formatNumber(inputs.currentRate, 0)}%`,
+          `Target activation rate: ${formatNumber(inputs.targetRate, 0)}%`,
+          `Avg monthly spend / active card: ${formatCurrency(inputs.avgSpend)}`,
+          `Interchange rate: ${formatNumber(inputs.interchangeRate, 1)}%`,
+          '',
+          'RESULTS',
+          `Incremental active cards: ${formatSignedNumber(Math.round(results.incrementalActive))}`,
+          `Additional monthly revenue: ${formatSignedCurrency(Math.round(results.incrementalMonthly))}`,
+          `Additional annual revenue: ${formatSignedCurrency(Math.round(results.incrementalAnnual))}`,
+          `Revenue currently left on table: ${formatCurrency(Math.round(results.opportunityCost))} / year`,
+          '',
+          'BENCHMARK',
+          `Institution type: ${getInstitutionLabel(inputs.institutionType)}`,
+          `Current rate: ${formatNumber(inputs.currentRate, 0)}% — ${getRating(inputs.currentRate, bench)}`,
+          `Target rate: ${formatNumber(inputs.targetRate, 0)}% — ${getRating(inputs.targetRate, bench)}`
+        ].join('\n');
+      } else {
+        const inputs = readFPInputs();
+        const { y1, y2, y3 } = buildProjectionYears(inputs);
+        const bench = BENCHMARKS_FP[inputs.institutionType];
+        const yearBlock = (label, y) => [
+          `${label}`,
+          `  Total revenue: ${formatCurrency(Math.round(y.totalRevenue))}`,
+          `  Total expenses: ${formatCurrency(Math.round(y.totalExpenses))}`,
+          `  Net income: ${formatCurrency(Math.round(y.netIncome))}`,
+          `  Net income / account: ${formatCurrency(Math.round(y.netPerAccount))}`,
+          `  Portfolio ROI: ${formatNumber(Math.round(y.portfolioRoi))}%`
+        ].join('\n');
+        text = [
+          'CARD PROFITABILITY BENCHMARKER — RESULTS SUMMARY',
+          'Generated by Danny Del Toro · dannydeltoro.framer.website',
+          '',
+          yearBlock('YEAR 1', y1),
+          '',
+          yearBlock('YEAR 2', y2),
+          '',
+          yearBlock('YEAR 3', y3),
+          '',
+          'BENCHMARK (Year 1)',
+          `Institution type: ${getInstitutionLabel(inputs.institutionType)}`,
+          `Net income / account: ${formatCurrency(Math.round(y1.netPerAccount))} — ${getRatingFP(y1.netPerAccount, bench)}`,
+          '',
+          'All figures are illustrative estimates for planning purposes.'
+        ].join('\n');
+      }
+
+      navigator.clipboard.writeText(text).then(() => {
+        const fb = document.getElementById('copyFeedback');
+        fb.classList.add('show');
+        setTimeout(() => fb.classList.remove('show'), 2000);
+      });
+    }
+
+    document.getElementById('btnQuick').addEventListener('click', () => setMode('quick'));
+    document.getElementById('btnFull').addEventListener('click', () => setMode('full'));
+    document.getElementById('btnReset').addEventListener('click', resetDefaults);
+    document.getElementById('btnCopy').addEventListener('click', copyResults);
+
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+      header.addEventListener('click', () => header.parentElement.classList.toggle('open'));
+    });
+
+    document.querySelectorAll('#rewardsToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setRewardsEnabled(btn.dataset.val === 'yes');
+        updateOutputs();
+      });
+    });
+
+    linkSlider('currentRateSlider', 'currentRate', updateOutputs);
+    linkSlider('targetRateSlider', 'targetRate', updateOutputs);
+    linkSlider('interchangeSlider', 'interchangeRate', updateOutputs);
+
+  linkSlider('fpPctActiveSlider', 'fpPctActive', updateOutputs);
+    linkSlider('fpRevolveSlider', 'fpRevolveRate', updateOutputs);
+    linkSlider('fpAttritionSlider', 'fpAttrition', updateOutputs);
+    linkSlider('fpInterchangeSlider', 'fpInterchange', updateOutputs);
+    linkSlider('fpAprSlider', 'fpApr', updateOutputs);
+    linkSlider('fpPctLateSlider', 'fpPctLate', updateOutputs);
+    linkSlider('fpDelinquencySlider', 'fpDelinquency', updateOutputs);
+    linkSlider('fpPctBonusSlider', 'fpPctBonus', updateOutputs);
+    linkSlider('fpPctRedeemedSlider', 'fpPctRedeemed', updateOutputs);
+    linkSlider('fpCofRevSlider', 'fpCofRevolving', updateOutputs);
+    linkSlider('fpCofTransSlider', 'fpCofTransacting', updateOutputs);
+    linkSlider('fpChargeoffSlider', 'fpChargeoff', updateOutputs);
+
+    ['cardsIssued', 'avgSpend'].forEach(id => document.getElementById(id).addEventListener('input', updateOutputs));
+    document.getElementById('institutionType').addEventListener('change', updateOutputs);
+    document.getElementById('fpInstitutionType').addEventListener('change', updateOutputs);
+
+    ['fpStartupCosts','fpTotalCards','fpAvgSpend','fpAvgBalance','fpAnnualFee','fpLateFee','fpCaFee','fpBtFee','fpOverlimitFee','fpBasePoints','fpBonusPoints','fpRedemptionCents','fpOpex','fpCostPerAcq','fpNewAccounts'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateOutputs);
+    });
+
+    updateOutputs();
+  </script>
+</body>
+</html>
